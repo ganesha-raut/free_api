@@ -1,3 +1,4 @@
+
 """Gemini StreamGenerate protocol implementation with httpx streaming."""
 import json
 import time
@@ -46,8 +47,17 @@ def _get_httpx_client():
 
 
 def load_cookie() -> tuple:
-    """Load cookie from file with mtime-based caching."""
+    """Load cookie from file with mtime-based caching and auto-detection."""
     cookie_file = CONFIG.get("cookie_file")
+    if not cookie_file:
+        for default_path in [
+            "./gemini-auth.json",
+            "./gemini-cookie-sync-extension/gemini-auth.json",
+            "/app/gemini-auth.json",
+        ]:
+            if os.path.exists(default_path):
+                cookie_file = default_path
+                break
     if not cookie_file or not os.path.exists(cookie_file):
         return "", None
     try:
@@ -60,6 +70,12 @@ def load_cookie() -> tuple:
             data = json.loads(content)
             cookie_str = data.get("cookie", "")
             sapisid = data.get("sapisid", "")
+            if data.get("xsrf_token") and not CONFIG.get("xsrf_token"):
+                CONFIG["xsrf_token"] = data["xsrf_token"]
+            if data.get("gemini_bl") and CONFIG.get("gemini_bl") == "boq_assistant-bard-web-server_20260716.08_p0":
+                CONFIG["gemini_bl"] = data["gemini_bl"]
+            if data.get("auth_user") is not None and CONFIG.get("auth_user") is None:
+                CONFIG["auth_user"] = data["auth_user"]
         else:
             cookie_str = content
             pairs = dict(p.split("=", 1) for p in cookie_str.split("; ") if "=" in p)
