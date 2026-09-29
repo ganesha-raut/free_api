@@ -13,15 +13,17 @@ if [ ! -f /app/config.json ] && [ -f /app/config.example.json ]; then
   cp /app/config.example.json /app/config.json
 fi
 
-# 1. Restore Ollama Cloud SSH key if OLLAMA_KEY_BASE64 is provided
+# 1. Restore Ollama Cloud SSH key if OLLAMA_KEY_BASE64 is provided (safely without crashing)
 mkdir -p /root/.ollama
 if [ -n "$OLLAMA_KEY_BASE64" ]; then
   echo "[1/3] Restoring Ollama Cloud key from OLLAMA_KEY_BASE64..."
-  echo "$OLLAMA_KEY_BASE64" | tr -d ' \n\r' | base64 -d > /root/.ollama/id_ed25519
-  chmod 600 /root/.ollama/id_ed25519
-  if command -v ssh-keygen >/dev/null 2>&1; then
-    ssh-keygen -y -f /root/.ollama/id_ed25519 > /root/.ollama/id_ed25519.pub 2>/dev/null || true
-  fi
+  (
+    echo "$OLLAMA_KEY_BASE64" | tr -d ' \n\r' | base64 -d > /root/.ollama/id_ed25519 2>/dev/null && \
+    chmod 600 /root/.ollama/id_ed25519 && \
+    if command -v ssh-keygen >/dev/null 2>&1; then
+      ssh-keygen -y -f /root/.ollama/id_ed25519 > /root/.ollama/id_ed25519.pub 2>/dev/null || true
+    fi
+  ) || echo "[!] Notice: OLLAMA_KEY_BASE64 decoding skipped (invalid or empty base64 string)"
 fi
 
 # 2. Start Gemini Web2API on internal loopback 127.0.0.1:8081
