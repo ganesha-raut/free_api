@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: private-ai-gateway
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: GEMINI_WEB2API_BASE_URL
+        value: http://127.0.0.1:8081/v1
+      - key: OLLAMA_BASE_URL
+        value: http://127.0.0.1:11434
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: OLLAMA_KEY_BASE64
+        sync: false
