@@ -594,7 +594,7 @@ export default function DocumentationPage() {
   const [selectedProvider, setSelectedProvider] = useState<string>("all");
   const [selectedModel, setSelectedModel] = useState<string>("gemma4:31b-cloud");
   const [apiKey, setApiKey] = useState<string>(
-    "sk_live_your_api_key_here"
+    "gw_live_sample_key_12345"
   );
   const [streamMode, setStreamMode] = useState<boolean>(true);
   const [activeLangId, setActiveLangId] = useState<string>("python-openai");

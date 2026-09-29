@@ -36,11 +36,18 @@ export function estimateTokens(text: string): number {
 
 export function getGatewayOrigin(): string {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (envUrl) {
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
     return envUrl.replace(/\/+$/, "").replace(/\/v1$/, "");
   }
   if (typeof window !== "undefined" && window.location?.origin) {
     return window.location.origin;
+  }
+  const renderUrl = process.env.RENDER_EXTERNAL_URL?.trim();
+  if (renderUrl) {
+    return renderUrl.replace(/\/+$/, "").replace(/\/v1$/, "");
+  }
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, "").replace(/\/v1$/, "");
   }
   return "http://localhost:3000";
 }

@@ -38,7 +38,23 @@ function createInitialState(): LocalDatabaseState {
         updated_at: now,
       },
     ],
-    api_keys: [],
+    api_keys:
+      process.env.NODE_ENV === "test"
+        ? []
+        : [
+            {
+              id: "b33432e6-fb97-45fa-bc4f-20a7a2acacca",
+              user_id: DEFAULT_ADMIN_USER_ID,
+              name: "demo",
+              key_prefix: "sk_live_99QW",
+              key_hash:
+                "3b1ecb6bdf3ea86b2d584d5490d1174348e1b57b3f0d5f71edb2838d3568ddd5",
+              created_at: now,
+              last_used_at: now,
+              revoked_at: null,
+              request_count: 14,
+            },
+          ],
     providers: [
       {
         id: "gemini",
@@ -52,7 +68,7 @@ function createInitialState(): LocalDatabaseState {
       },
       {
         id: "ollama",
-        name: "Ollama (Oracle Cloud VPS)",
+        name: "Ollama Cloud",
         type: "ollama",
         base_url: ollamaUrl,
         enabled: true,
@@ -95,6 +111,114 @@ function createInitialState(): LocalDatabaseState {
         type: "reasoning",
         enabled: true,
         description: "Extended deep-thinking mode (~20k chars output)",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "81400e76-d6d2-4951-b006-36d8fa105601",
+        public_id: "gemini-3.7-flash",
+        name: "gemini-3.7-flash (Gemini Web2API)",
+        provider_id: "gemini",
+        provider_model: "gemini-3.7-flash",
+        type: "chat",
+        enabled: true,
+        description: "Auto-synced from Gemini Web2API",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "9fd81cdd-cf47-4282-bdc6-d85ece464ec3",
+        public_id: "gemini-3.6-flash",
+        name: "gemini-3.6-flash (Gemini Web2API)",
+        provider_id: "gemini",
+        provider_model: "gemini-3.6-flash",
+        type: "chat",
+        enabled: true,
+        description: "Auto-synced from Gemini Web2API",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "53587339-b24d-4b16-9606-67392308b1bb",
+        public_id: "gemini-3.5-flash",
+        name: "gemini-3.5-flash (Gemini Web2API)",
+        provider_id: "gemini",
+        provider_model: "gemini-3.5-flash",
+        type: "chat",
+        enabled: true,
+        description: "Auto-synced from Gemini Web2API",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "098313a8-2592-4599-b006-94d1197dd6e6",
+        public_id: "gemini-3.5-flash-thinking",
+        name: "gemini-3.5-flash-thinking (Gemini Web2API)",
+        provider_id: "gemini",
+        provider_model: "gemini-3.5-flash-thinking",
+        type: "reasoning",
+        enabled: true,
+        description: "Auto-synced from Gemini Web2API",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "5d388b76-46ea-4100-9be0-1db7fd3c5f18",
+        public_id: "gemini-3.1-pro",
+        name: "gemini-3.1-pro (Gemini Web2API)",
+        provider_id: "gemini",
+        provider_model: "gemini-3.1-pro",
+        type: "reasoning",
+        enabled: true,
+        description: "Auto-synced from Gemini Web2API",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "d98b11ae-7d83-4274-9618-a9b8eb15d24c",
+        public_id: "gemini-3.1-pro-enhanced",
+        name: "gemini-3.1-pro-enhanced (Gemini Web2API)",
+        provider_id: "gemini",
+        provider_model: "gemini-3.1-pro-enhanced",
+        type: "reasoning",
+        enabled: true,
+        description: "Auto-synced from Gemini Web2API",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "a8eb493a-1b7c-414b-9e6d-2960be107f55",
+        public_id: "gemini-auto",
+        name: "gemini-auto (Gemini Web2API)",
+        provider_id: "gemini",
+        provider_model: "gemini-auto",
+        type: "chat",
+        enabled: true,
+        description: "Auto-synced from Gemini Web2API",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "18d36f1a-61e5-4f5a-8e34-c26e373a86b3",
+        public_id: "gemini-3.5-flash-thinking-lite",
+        name: "gemini-3.5-flash-thinking-lite (Gemini Web2API)",
+        provider_id: "gemini",
+        provider_model: "gemini-3.5-flash-thinking-lite",
+        type: "reasoning",
+        enabled: true,
+        description: "Auto-synced from Gemini Web2API",
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: "89bf1e22-3d95-4b1e-958a-7f8e34a1c922",
+        public_id: "gemini-flash-lite",
+        name: "gemini-flash-lite (Gemini Web2API)",
+        provider_id: "gemini",
+        provider_model: "gemini-flash-lite",
+        type: "chat",
+        enabled: true,
+        description: "Auto-synced from Gemini Web2API",
         created_at: now,
         updated_at: now,
       },
@@ -179,9 +303,11 @@ function createInitialState(): LocalDatabaseState {
 
 let pgPool: Pool | null = null;
 let pgInitialized = false;
+let pgUnreachable = false;
 let memoryState: LocalDatabaseState | null = null;
 
 function isPostgresConfigured(): boolean {
+  if (pgUnreachable || process.env.NODE_ENV === "test") return false;
   const url = process.env.DATABASE_URL?.trim();
   return Boolean(
     url && (url.startsWith("postgres://") || url.startsWith("postgresql://"))
@@ -231,28 +357,41 @@ function saveLocalState(state: LocalDatabaseState): void {
   fs.writeFileSync(filePath, JSON.stringify(state, null, 2), "utf-8");
 }
 
-async function getPgPool(): Promise<Pool> {
-  if (!pgPool) {
-    pgPool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: 10,
-      idleTimeoutMillis: 30000,
-    });
-  }
-  if (!pgInitialized) {
-    const migrationPath = path.join(
-      process.cwd(),
-      "supabase",
-      "migrations",
-      "001_initial_schema.sql"
-    );
-    if (fs.existsSync(migrationPath)) {
-      const sql = fs.readFileSync(migrationPath, "utf-8");
-      await pgPool.query(sql);
+async function getPgPool(): Promise<Pool | null> {
+  if (!isPostgresConfigured()) return null;
+  try {
+    if (!pgPool) {
+      pgPool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 4000,
+      });
     }
-    pgInitialized = true;
+    if (!pgInitialized) {
+      const migrationPath = path.join(
+        process.cwd(),
+        "supabase",
+        "migrations",
+        "001_initial_schema.sql"
+      );
+      if (fs.existsSync(migrationPath)) {
+        const sql = fs.readFileSync(migrationPath, "utf-8");
+        await pgPool.query(sql);
+      } else {
+        await pgPool.query("SELECT 1");
+      }
+      pgInitialized = true;
+    }
+    return pgPool;
+  } catch (err) {
+    console.warn(
+      "[db] PostgreSQL direct connection unreachable (falling back to local persistent store):",
+      err instanceof Error ? err.message : String(err)
+    );
+    pgUnreachable = true;
+    return null;
   }
-  return pgPool;
 }
 
 export const db = {
@@ -265,8 +404,8 @@ export const db = {
   },
 
   async getDefaultUser(): Promise<UserRecord> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<UserRecord>(
         "SELECT * FROM users ORDER BY created_at ASC LIMIT 1"
       );
@@ -278,8 +417,8 @@ export const db = {
 
   // --- API Keys ---
   async listApiKeys(): Promise<ApiKeyRecord[]> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<ApiKeyRecord>(
         "SELECT * FROM api_keys ORDER BY created_at DESC"
       );
@@ -293,8 +432,8 @@ export const db = {
   },
 
   async findApiKeyByHash(keyHash: string): Promise<ApiKeyRecord | null> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<ApiKeyRecord>(
         "SELECT * FROM api_keys WHERE key_hash = $1 LIMIT 1",
         [keyHash]
@@ -321,8 +460,8 @@ export const db = {
     user_id?: string;
   }): Promise<ApiKeyRecord> {
     const userId = params.user_id || DEFAULT_ADMIN_USER_ID;
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<ApiKeyRecord>(
         `INSERT INTO api_keys (user_id, name, key_prefix, key_hash)
          VALUES ($1, $2, $3, $4)
@@ -350,8 +489,8 @@ export const db = {
 
   async revokeApiKey(id: string): Promise<ApiKeyRecord | null> {
     const now = new Date().toISOString();
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<ApiKeyRecord>(
         `UPDATE api_keys SET revoked_at = $1 WHERE id = $2 RETURNING *`,
         [now, id]
@@ -367,8 +506,8 @@ export const db = {
   },
 
   async deleteApiKey(id: string): Promise<boolean> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query(`DELETE FROM api_keys WHERE id = $1`, [id]);
       return (res.rowCount ?? 0) > 0;
     }
@@ -384,8 +523,8 @@ export const db = {
 
   async recordApiKeyUsage(id: string): Promise<void> {
     const now = new Date().toISOString();
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       await pool.query(
         `UPDATE api_keys
          SET last_used_at = $1, request_count = request_count + 1
@@ -405,8 +544,8 @@ export const db = {
 
   // --- Providers ---
   async listProviders(): Promise<ProviderRecord[]> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<ProviderRecord>(
         "SELECT * FROM providers ORDER BY created_at ASC"
       );
@@ -417,8 +556,8 @@ export const db = {
   },
 
   async getProviderById(id: string): Promise<ProviderRecord | null> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<ProviderRecord>(
         "SELECT * FROM providers WHERE id = $1 LIMIT 1",
         [id]
@@ -434,8 +573,8 @@ export const db = {
     updates: Partial<Pick<ProviderRecord, "name" | "base_url" | "enabled" | "timeout_ms">>
   ): Promise<ProviderRecord | null> {
     const now = new Date().toISOString();
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const existing = await this.getProviderById(id);
       if (!existing) return null;
       const res = await pool.query<ProviderRecord>(
@@ -468,8 +607,8 @@ export const db = {
 
   // --- Models ---
   async listModels(onlyEnabled = false): Promise<ModelRecord[]> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const query = onlyEnabled
         ? "SELECT * FROM models WHERE enabled = TRUE ORDER BY created_at ASC"
         : "SELECT * FROM models ORDER BY created_at ASC";
@@ -483,8 +622,8 @@ export const db = {
   },
 
   async getModelByPublicId(publicId: string): Promise<ModelRecord | null> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<ModelRecord>(
         "SELECT * FROM models WHERE public_id = $1 LIMIT 1",
         [publicId]
@@ -496,8 +635,8 @@ export const db = {
   },
 
   async getModelById(id: string): Promise<ModelRecord | null> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<ModelRecord>(
         "SELECT * FROM models WHERE id = $1 LIMIT 1",
         [id]
@@ -518,8 +657,8 @@ export const db = {
     description?: string;
   }): Promise<ModelRecord> {
     const now = new Date().toISOString();
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<ModelRecord>(
         `INSERT INTO models (public_id, name, provider_id, provider_model, type, enabled, description)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -573,8 +712,8 @@ export const db = {
     >
   ): Promise<ModelRecord | null> {
     const now = new Date().toISOString();
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const existing = await this.getModelById(id);
       if (!existing) return null;
       const res = await pool.query<ModelRecord>(
@@ -613,8 +752,8 @@ export const db = {
   },
 
   async deleteModel(id: string): Promise<boolean> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query("DELETE FROM models WHERE id = $1", [id]);
       return (res.rowCount ?? 0) > 0;
     }
@@ -633,8 +772,8 @@ export const db = {
     entry: Omit<UsageLogRecord, "id" | "created_at">
   ): Promise<UsageLogRecord> {
     const now = new Date().toISOString();
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<UsageLogRecord>(
         `INSERT INTO usage_logs (
           request_id, api_key_id, model, provider, status_code,
@@ -674,8 +813,8 @@ export const db = {
   },
 
   async listUsageLogs(limit = 100): Promise<UsageLogRecord[]> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<UsageLogRecord>(
         `SELECT u.*, k.name AS api_key_name
          FROM usage_logs u
@@ -696,8 +835,8 @@ export const db = {
 
   // --- Settings ---
   async getSettings(): Promise<GatewaySettings> {
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const res = await pool.query<GatewaySettings>(
         "SELECT * FROM gateway_settings WHERE id = 'default' LIMIT 1"
       );
@@ -713,8 +852,8 @@ export const db = {
     >
   ): Promise<GatewaySettings> {
     const now = new Date().toISOString();
-    if (isPostgresConfigured()) {
-      const pool = await getPgPool();
+    const pool = await getPgPool();
+    if (pool) {
       const current = await this.getSettings();
       const res = await pool.query<GatewaySettings>(
         `UPDATE gateway_settings
@@ -724,7 +863,11 @@ export const db = {
              rate_limit_rpm = $4,
              max_request_bytes = $5,
              cors_origins = $6,
-             updated_at = $7
+             ip_allowlist = $7,
+             strict_security_headers = $8,
+             totp_enabled = $9,
+             totp_secret = $10,
+             updated_at = $11
          WHERE id = 'default'
          RETURNING *`,
         [
@@ -734,6 +877,10 @@ export const db = {
           updates.rate_limit_rpm ?? current.rate_limit_rpm,
           updates.max_request_bytes ?? current.max_request_bytes,
           updates.cors_origins ?? current.cors_origins,
+          updates.ip_allowlist ?? current.ip_allowlist ?? "*",
+          updates.strict_security_headers ?? current.strict_security_headers ?? true,
+          updates.totp_enabled ?? current.totp_enabled ?? false,
+          updates.totp_secret !== undefined ? updates.totp_secret : (current.totp_secret ?? null),
           now,
         ]
       );

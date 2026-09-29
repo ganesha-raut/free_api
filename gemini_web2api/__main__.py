@@ -11,6 +11,7 @@ from . import __version__
 
 def main():
     parser = argparse.ArgumentParser(description="Gemini Web to OpenAI API")
+    parser.add_argument("--host", type=str, default=None)
     parser.add_argument("--port", type=int, default=None)
     parser.add_argument("--config", type=str, default=None)
     parser.add_argument("--cookie-file", type=str, default=None)
@@ -22,6 +23,8 @@ def main():
     if config_path:
         load_config(config_path)
 
+    if args.host:
+        CONFIG["host"] = args.host
     if args.port:
         CONFIG["port"] = args.port
     if args.cookie_file:

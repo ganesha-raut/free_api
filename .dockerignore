@@ -1,9 +1,16 @@
 .git
 .idea
 .venv
+venv
+node_modules
+.next
 __pycache__
 *.pyc
 config.json
 cookie.txt
 cookie.json
 .env
+.env.*
+!.env.example
+*.log
+tsconfig.tsbuildinfo
