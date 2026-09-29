@@ -30,13 +30,25 @@ export class GeminiWeb2APIProvider implements AIProvider {
   constructor(options: GeminiProviderOptions = {}) {
     this.id = options.id || "gemini";
     this.name = options.name || "Gemini Web2API";
-    const rawUrl =
+    let rawUrl =
       options.baseUrl ||
       process.env.GEMINI_WEB2API_BASE_URL ||
-      "http://localhost:8081/v1";
+      "http://127.0.0.1:8081/v1";
+
+    const internalProxyUrl =
+      process.env.GEMINI_WEB2API_BASE_URL || "http://127.0.0.1:8081/v1";
+    if (
+      rawUrl.includes("onrender.com") ||
+      (process.env.RENDER_EXTERNAL_URL &&
+        rawUrl.includes(process.env.RENDER_EXTERNAL_URL))
+    ) {
+      rawUrl = internalProxyUrl;
+    }
+
     this.baseUrl = rawUrl.replace(/\/+$/, "");
     this.timeoutMs = options.timeoutMs || 60000;
-    this.apiKey = options.apiKey || process.env.GEMINI_WEB2API_API_KEY;
+    this.apiKey =
+      options.apiKey || process.env.GEMINI_WEB2API_API_KEY || "sk-gemini";
   }
 
   private getHeaders(): Record<string, string> {
