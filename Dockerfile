@@ -1,12 +1,16 @@
 FROM node:20-slim
 
-# Install Python 3, pip, curl, and required utilities
+# Install Python 3, pip, curl, procps, and required utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     curl \
     ca-certificates \
+    procps \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Ollama binary for Ollama Cloud daemon
+RUN curl -fsSL https://ollama.com/install.sh | sh
 
 WORKDIR /app
 
