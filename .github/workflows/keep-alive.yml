@@ -1,0 +1,15 @@
+name: Keep-Alive Ping
+
+on:
+  schedule:
+    # Run every 10 minutes to keep Render container awake 24/7
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping AI Gateway Health Endpoint
+        run: |
+          curl -s -f https://api.ganesharaut.in/api/health || echo "Ping failed"
