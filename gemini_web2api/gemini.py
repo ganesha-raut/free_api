@@ -235,9 +235,15 @@ def _extract_texts_from_line(line: str) -> list:
 
 def extract_response_text(raw: str) -> str:
     """Parse full response to get final text."""
-    bard_err = re.search(r'BardErrorInfo\s*\[(\d+)\]', raw)
+    bard_err = re.search(r'BardErrorInfo[^\d]*(\d+)', raw)
     if bard_err:
-        raise RuntimeError(f"Gemini upstream rejected request: BardErrorInfo [{bard_err.group(1)}]")
+        err_code = bard_err.group(1)
+        err_hint = ""
+        if err_code == "1003":
+            err_hint = " (File or attachment not bound to conversation session)"
+        elif err_code == "1060":
+            err_hint = " (IP or environment flagged by upstream Google)"
+        raise RuntimeError(f"Gemini upstream rejected request: BardErrorInfo [{err_code}]{err_hint}")
     last_text = ""
     for line in raw.split("\n"):
         for t in _extract_texts_from_line(line):
@@ -299,10 +305,16 @@ def generate_stream(prompt: str, model_id: int, think_mode: int, file_refs: list
                 for chunk in resp.iter_text():
                     buf += chunk
                     if "BardErrorInfo" in buf:
-                        bard_err = re.search(r'BardErrorInfo\s*\[(\d+)\]', buf)
+                        bard_err = re.search(r'BardErrorInfo[^\d]*(\d+)', buf)
                         if bard_err:
+                            err_code = bard_err.group(1)
+                            err_hint = ""
+                            if err_code == "1003":
+                                err_hint = " (File or attachment not bound to conversation session)"
+                            elif err_code == "1060":
+                                err_hint = " (IP or environment flagged by upstream Google)"
                             raise RuntimeError(
-                                f"Gemini upstream rejected request: BardErrorInfo [{bard_err.group(1)}]"
+                                f"Gemini upstream rejected request: BardErrorInfo [{err_code}]{err_hint}"
                             )
                     while "\n" in buf:
                         line, buf = buf.split("\n", 1)

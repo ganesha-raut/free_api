@@ -35,10 +35,12 @@ export class GeminiWeb2APIProvider implements AIProvider {
       process.env.GEMINI_WEB2API_BASE_URL ||
       "http://127.0.0.1:8081/v1";
 
+    // Prevent self-referencing loops on Render or public URLs
     const internalProxyUrl =
       process.env.GEMINI_WEB2API_BASE_URL || "http://127.0.0.1:8081/v1";
     if (
       rawUrl.includes("onrender.com") ||
+      rawUrl.includes("ganesharaut.in") ||
       (process.env.RENDER_EXTERNAL_URL &&
         rawUrl.includes(process.env.RENDER_EXTERNAL_URL))
     ) {
@@ -47,8 +49,7 @@ export class GeminiWeb2APIProvider implements AIProvider {
 
     this.baseUrl = rawUrl.replace(/\/+$/, "");
     this.timeoutMs = options.timeoutMs || 60000;
-    this.apiKey =
-      options.apiKey || process.env.GEMINI_WEB2API_API_KEY || "sk-gemini";
+    this.apiKey = options.apiKey || process.env.GEMINI_WEB2API_API_KEY;
   }
 
   private getHeaders(): Record<string, string> {

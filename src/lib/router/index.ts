@@ -42,7 +42,36 @@ export interface ResolvedRoute {
 export async function resolveModelRoute(
   publicModelId: string
 ): Promise<ResolvedRoute> {
-  const modelRecord = await db.getModelByPublicId(publicModelId);
+  let modelRecord = await db.getModelByPublicId(publicModelId);
+
+  // Dynamic Auto-Fetch & Resolution for Gemini and active models
+  if (!modelRecord) {
+    const isGemini =
+      publicModelId.toLowerCase().includes("gemini") ||
+      publicModelId.toLowerCase().startsWith("gemini");
+
+    if (isGemini) {
+      const geminiProvider = await db.getProviderById("gemini");
+      if (geminiProvider && geminiProvider.enabled) {
+        try {
+          modelRecord = await db.createModel({
+            public_id: publicModelId,
+            name: `${publicModelId} (Gemini Web2API)`,
+            provider_id: "gemini",
+            provider_model: publicModelId,
+            type: publicModelId.toLowerCase().includes("think")
+              ? "reasoning"
+              : "chat",
+            enabled: true,
+            description: "Auto-detected active Gemini model",
+          });
+        } catch {
+          // Fallback if already inserted concurrently
+          modelRecord = await db.getModelByPublicId(publicModelId);
+        }
+      }
+    }
+  }
 
   if (!modelRecord) {
     throw new RouterResolutionError(
