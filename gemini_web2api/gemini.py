@@ -46,14 +46,43 @@ def _get_httpx_client():
 
 
 def load_cookie() -> tuple:
-    """Load cookie from env var or file with mtime-based caching."""
+    """Load cookie from environment variable or file with mtime-based caching."""
+    # 1. Check GEMINI_AUTH_JSON environment variable directly
+    env_auth_json = os.environ.get("GEMINI_AUTH_JSON")
+    if env_auth_json and env_auth_json.strip().startswith("{"):
+        try:
+            data = json.loads(env_auth_json.strip())
+            cookie_str = data.get("cookie", "")
+            sapisid = data.get("sapisid", "")
+            if not sapisid and cookie_str:
+                pairs = dict(p.split("=", 1) for p in cookie_str.split("; ") if "=" in p)
+                sapisid = pairs.get("SAPISID", "")
+            if data.get("xsrf_token"):
+                CONFIG["xsrf_token"] = data["xsrf_token"]
+            if data.get("gemini_bl"):
+                CONFIG["gemini_bl"] = data["gemini_bl"]
+            if data.get("auth_user") is not None:
+                CONFIG["auth_user"] = data["auth_user"]
+            if cookie_str:
+                return cookie_str, sapisid or None
+        except Exception as e:
+            log(f"Failed to parse GEMINI_AUTH_JSON: {e}")
+
+    # 2. Check GEMINI_COOKIE environment variable
     env_cookie = os.environ.get("GEMINI_COOKIE") or os.environ.get("COOKIE")
     if env_cookie:
         pairs = dict(p.split("=", 1) for p in env_cookie.split("; ") if "=" in p)
         sapisid = pairs.get("SAPISID", "")
         return env_cookie, sapisid or None
 
+    # 3. Check cookie file (either from CONFIG or auto-detected default paths)
     cookie_file = CONFIG.get("cookie_file")
+    if not cookie_file:
+        for p in ["./gemini-auth.json", "/app/gemini-auth.json", "gemini-cookie-sync-extension/gemini-auth.json"]:
+            if os.path.exists(p):
+                cookie_file = p
+                break
+
     if not cookie_file or not os.path.exists(cookie_file):
         return "", None
     try:
@@ -66,6 +95,15 @@ def load_cookie() -> tuple:
             data = json.loads(content)
             cookie_str = data.get("cookie", "")
             sapisid = data.get("sapisid", "")
+            if not sapisid and cookie_str:
+                pairs = dict(p.split("=", 1) for p in cookie_str.split("; ") if "=" in p)
+                sapisid = pairs.get("SAPISID", "")
+            if data.get("xsrf_token"):
+                CONFIG["xsrf_token"] = data["xsrf_token"]
+            if data.get("gemini_bl"):
+                CONFIG["gemini_bl"] = data["gemini_bl"]
+            if data.get("auth_user") is not None:
+                CONFIG["auth_user"] = data["auth_user"]
         else:
             cookie_str = content
             pairs = dict(p.split("=", 1) for p in cookie_str.split("; ") if "=" in p)
