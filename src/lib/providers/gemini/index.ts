@@ -49,7 +49,8 @@ export class GeminiWeb2APIProvider implements AIProvider {
 
     this.baseUrl = rawUrl.replace(/\/+$/, "");
     this.timeoutMs = options.timeoutMs || 60000;
-    this.apiKey = options.apiKey || process.env.GEMINI_WEB2API_API_KEY;
+    this.apiKey =
+      options.apiKey || process.env.GEMINI_WEB2API_API_KEY || "sk-gemini";
   }
 
   private getHeaders(): Record<string, string> {
