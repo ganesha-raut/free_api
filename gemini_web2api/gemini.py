@@ -249,7 +249,13 @@ def extract_response_text(raw: str) -> str:
         for t in _extract_texts_from_line(line):
             if len(t) > len(last_text):
                 last_text = t
-    return clean_text(last_text)
+    cleaned = clean_text(last_text)
+    lower_c = cleaned.lower()
+    if "getting a lot of requests right now" in lower_c:
+        raise RuntimeError("Gemini upstream rate-limited (Google web rate limit: please wait a moment)")
+    if "having a hard time fulfilling your request" in lower_c:
+        raise RuntimeError("Gemini upstream safety/repetition filter triggered on excessive context")
+    return cleaned
 
 
 def generate(prompt: str, model_id: int, think_mode: int, file_refs: list = None, extra_fields: dict = None) -> str:

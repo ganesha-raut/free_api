@@ -163,7 +163,14 @@ def messages_to_prompt(messages: list, tools: list = None, tool_choice=None) -> 
             else:
                 parts.append(f"[Assistant]: {content}")
         elif role == "tool":
-            parts.append(f"[Tool result for {msg.get('name', '')}]: {content}")
+            tool_content = str(content or "")
+            if len(tool_content) > 6000:
+                tool_content = (
+                    tool_content[:3000]
+                    + "\n\n... [output truncated: showing first 3000 and last 3000 characters] ...\n\n"
+                    + tool_content[-3000:]
+                )
+            parts.append(f"[Tool result for {msg.get('name', '')}]: {tool_content}")
         else:
             is_last = (i == len(messages) - 1)
             msg_text = content if content else ""
