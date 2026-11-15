@@ -109,8 +109,8 @@ def messages_to_prompt(messages: list, tools: list = None, tool_choice=None) -> 
     parts = []
     images = []
 
+    tool_defs = []
     if tools and tool_choice != "none":
-        tool_defs = []
         for tool in tools:
             fn = tool.get("function", tool) if tool.get("type") == "function" else tool
             tool_defs.append({
@@ -121,15 +121,18 @@ def messages_to_prompt(messages: list, tools: list = None, tool_choice=None) -> 
         if tool_defs:
             constraint = _build_tool_choice_instruction(tool_choice, tool_defs)
             parts.append(
-                "# Tool Use\n\n"
-                "You can call the following tools. Call format:\n"
-                '```tool_call\n{"name": "func_name", "arguments": {...}}\n```\n'
-                "When calling tools, output ONLY the tool_call block(s).\n\n"
+                "# Tool Use Rules\n\n"
+                "You have access to the following local tools. When the user requests an action (such as creating/writing files, running terminal/bash commands, editing code, or fetching web info), you MUST call the appropriate tool using this exact markdown format:\n"
+                '```tool_call\n{"name": "tool_name", "arguments": {<arguments>}}\n```\n'
+                "CRITICAL REQUIREMENTS:\n"
+                "- DO NOT just output markdown code blocks or pretend you made the file. Output the tool_call block so the tool is actually executed.\n"
+                "- DO NOT output fake or internal preview URLs like googleusercontent.com/action_card_content.\n"
+                "- If writing a file, call write_file with the path and file content.\n\n"
                 f"Available tools:\n{json.dumps(tool_defs, indent=2)}"
                 f"{constraint}"
             )
 
-    for msg in messages:
+    for i, msg in enumerate(messages):
         role = msg.get("role", "user")
         content = msg.get("content", "")
 
@@ -162,7 +165,11 @@ def messages_to_prompt(messages: list, tools: list = None, tool_choice=None) -> 
         elif role == "tool":
             parts.append(f"[Tool result for {msg.get('name', '')}]: {content}")
         else:
-            parts.append(content if content else "")
+            is_last = (i == len(messages) - 1)
+            msg_text = content if content else ""
+            if is_last and tool_defs:
+                msg_text += "\n\n(Reminder: When action or file creation/execution is needed, emit ```tool_call block.)"
+            parts.append(msg_text)
 
     prompt = "\n\n".join(p for p in parts if p)
     return prompt, images
@@ -171,37 +178,94 @@ def messages_to_prompt(messages: list, tools: list = None, tool_choice=None) -> 
 def parse_tool_calls(text: str) -> tuple:
     """Extract tool_call blocks. Returns (clean_text, tool_calls_list)."""
     tool_calls = []
-    pattern = r'```(?:tool_call|function_call)?\s*\n(.*?)\n```'
-    clean_parts = []
-    last_end = 0
-    for m in re.finditer(pattern, text, re.DOTALL):
-        clean_parts.append(text[last_end:m.start()])
-        last_end = m.end()
+    clean = text
+
+    # Strip hallucinated Google action card preview URLs if present
+    clean = re.sub(r'https?://[a-zA-Z0-9.\-_]*googleusercontent\.com/action_card_content/\S+', '', clean)
+
+    # 1. Standard or unclosed markdown blocks: ```tool_call ... (closed by ``` or end of text)
+    pattern1 = r'```(?:tool_call|function_call|json)?\s*\n(.*?)(?:\n```|```|$)'
+    for m in re.finditer(pattern1, clean, re.DOTALL):
+        block = m.group(1).strip()
+        if not block:
+            continue
+        try:
+            data = json.loads(block)
+            name = data.get("name")
+            if name:
+                raw_args = data.get("arguments", data.get("args", {}))
+                if isinstance(raw_args, dict):
+                    args_str = json.dumps(raw_args, ensure_ascii=False)
+                elif isinstance(raw_args, str):
+                    args_str = raw_args
+                else:
+                    args_str = "{}"
+                tool_calls.append({
+                    "index": len(tool_calls),
+                    "id": f"call_{uuid.uuid4().hex[:8]}",
+                    "type": "function",
+                    "function": {
+                        "name": name,
+                        "arguments": args_str,
+                    },
+                })
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    if tool_calls:
+        clean = re.sub(pattern1, '', clean, flags=re.DOTALL).strip()
+        return clean, tool_calls
+
+    # 2. XML tags: <tool_call>...</tool_call>
+    pattern2 = r'<(?:tool_call|function_call)>(.*?)</(?:tool_call|function_call)>'
+    for m in re.finditer(pattern2, clean, re.DOTALL):
         try:
             data = json.loads(m.group(1).strip())
             name = data.get("name")
-            if not name:
-                continue
-            raw_args = data.get("arguments", data.get("args", {}))
-            if isinstance(raw_args, dict):
-                args_str = json.dumps(raw_args, ensure_ascii=False)
-            elif isinstance(raw_args, str):
-                args_str = raw_args
-            else:
-                args_str = "{}"
-            tool_calls.append({
-                "index": len(tool_calls),
-                "id": f"call_{uuid.uuid4().hex[:8]}",
-                "type": "function",
-                "function": {
-                    "name": name,
-                    "arguments": args_str,
-                },
-            })
+            if name:
+                raw_args = data.get("arguments", data.get("args", {}))
+                args_str = json.dumps(raw_args, ensure_ascii=False) if isinstance(raw_args, dict) else str(raw_args or "{}")
+                tool_calls.append({
+                    "index": len(tool_calls),
+                    "id": f"call_{uuid.uuid4().hex[:8]}",
+                    "type": "function",
+                    "function": {
+                        "name": name,
+                        "arguments": args_str,
+                    },
+                })
         except (json.JSONDecodeError, KeyError):
             pass
-    clean_parts.append(text[last_end:])
-    clean = "".join(clean_parts).strip()
+
+    if tool_calls:
+        clean = re.sub(pattern2, '', clean, flags=re.DOTALL).strip()
+        return clean, tool_calls
+
+    # 3. Direct JSON with "name" and ("arguments" or "args")
+    if "{" in clean and "name" in clean:
+        try:
+            start = clean.find("{")
+            end = clean.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                candidate = clean[start:end+1]
+                data = json.loads(candidate)
+                name = data.get("name")
+                if name and ("arguments" in data or "args" in data):
+                    raw_args = data.get("arguments", data.get("args", {}))
+                    args_str = json.dumps(raw_args, ensure_ascii=False) if isinstance(raw_args, dict) else str(raw_args or "{}")
+                    tool_calls.append({
+                        "index": 0,
+                        "id": f"call_{uuid.uuid4().hex[:8]}",
+                        "type": "function",
+                        "function": {
+                            "name": name,
+                            "arguments": args_str,
+                        },
+                    })
+                    clean = (clean[:start] + clean[end+1:]).strip()
+        except (json.JSONDecodeError, KeyError):
+            pass
+
     return clean, tool_calls
 
 

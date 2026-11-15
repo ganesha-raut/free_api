@@ -54,6 +54,42 @@ function createInitialState(): LocalDatabaseState {
               revoked_at: null,
               request_count: 14,
             },
+            {
+              id: "c44567e7-fb97-45fa-bc4f-20a7a2acaccb",
+              user_id: DEFAULT_ADMIN_USER_ID,
+              name: "hermes-default",
+              key_prefix: "sk_live_LJHC",
+              key_hash:
+                "ec88b7a8bd2680008ece14f33924de83b4d104284c1abf05361db800808d7f4e",
+              created_at: now,
+              last_used_at: now,
+              revoked_at: null,
+              request_count: 0,
+            },
+            {
+              id: "d55678e8-fb97-45fa-bc4f-20a7a2acaccc",
+              user_id: DEFAULT_ADMIN_USER_ID,
+              name: "hermes-secondary",
+              key_prefix: "sk_live_rrSj",
+              key_hash:
+                "6f4841d1155910995cfe53444043b5ced138e44d3ac38d240187067ea87a1931",
+              created_at: now,
+              last_used_at: now,
+              revoked_at: null,
+              request_count: 0,
+            },
+            {
+              id: "e66789e9-fb97-45fa-bc4f-20a7a2acaccd",
+              user_id: DEFAULT_ADMIN_USER_ID,
+              name: "hermes-tertiary",
+              key_prefix: "sk_live_6gk9",
+              key_hash:
+                "721efd32038c3d9227a8a13d6c1becf6ea313587ecb926e3f55af2d3bf539f55",
+              created_at: now,
+              last_used_at: now,
+              revoked_at: null,
+              request_count: 0,
+            },
           ],
     providers: [
       {
