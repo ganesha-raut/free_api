@@ -122,10 +122,13 @@ def messages_to_prompt(messages: list, tools: list = None, tool_choice=None) -> 
             constraint = _build_tool_choice_instruction(tool_choice, tool_defs)
             parts.append(
                 "# Tool Use Rules\n\n"
-                "You have access to the following local tools. When the user requests an action (such as creating/writing files, running terminal/bash commands, editing code, or fetching web info), you MUST call the appropriate tool using this exact markdown format:\n"
+                "You are an autonomous local agent running in the user's terminal environment with direct access to local tools.\n"
+                "You CAN and DO execute real terminal commands, manage background processes, read/write files, and access localhost ports via the provided tools.\n\n"
+                "When the user requests an action (such as creating/writing files, running terminal/bash commands, starting servers, editing code, or fetching web info), you MUST call the appropriate tool using this exact markdown format:\n"
                 '```tool_call\n{"name": "tool_name", "arguments": {<arguments>}}\n```\n'
                 "CRITICAL REQUIREMENTS:\n"
                 "- DO NOT just output markdown code blocks or pretend you made the file. Output the tool_call block so the tool is actually executed.\n"
+                "- DO NOT claim or hallucinate that you 'do not have access to the local shell', 'cannot run background services', or 'cannot access localhost'. Your tools run directly on the user's machine.\n"
                 "- DO NOT output fake or internal preview URLs like googleusercontent.com/action_card_content.\n"
                 "- If writing a file, call write_file with the path and file content.\n\n"
                 f"Available tools:\n{json.dumps(tool_defs, indent=2)}"
