@@ -171,7 +171,7 @@ def messages_to_prompt(messages: list, tools: list = None, tool_choice=None) -> 
 def parse_tool_calls(text: str) -> tuple:
     """Extract tool_call blocks. Returns (clean_text, tool_calls_list)."""
     tool_calls = []
-    pattern = r'```tool_call\s*\n(.*?)\n```'
+    pattern = r'```(?:tool_call|function_call)?\s*\n(.*?)\n```'
     clean_parts = []
     last_end = 0
     for m in re.finditer(pattern, text, re.DOTALL):
@@ -179,12 +179,23 @@ def parse_tool_calls(text: str) -> tuple:
         last_end = m.end()
         try:
             data = json.loads(m.group(1).strip())
+            name = data.get("name")
+            if not name:
+                continue
+            raw_args = data.get("arguments", data.get("args", {}))
+            if isinstance(raw_args, dict):
+                args_str = json.dumps(raw_args, ensure_ascii=False)
+            elif isinstance(raw_args, str):
+                args_str = raw_args
+            else:
+                args_str = "{}"
             tool_calls.append({
+                "index": len(tool_calls),
                 "id": f"call_{uuid.uuid4().hex[:8]}",
                 "type": "function",
                 "function": {
-                    "name": data["name"],
-                    "arguments": json.dumps(data.get("arguments", {}), ensure_ascii=False),
+                    "name": name,
+                    "arguments": args_str,
                 },
             })
         except (json.JSONDecodeError, KeyError):
