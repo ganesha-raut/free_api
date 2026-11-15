@@ -117,7 +117,7 @@ export class OllamaProvider implements AIProvider {
         : [request.stop];
     }
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       model: request.model,
       messages: request.messages.map((m) => ({
         role: m.role === "developer" ? "system" : m.role,
@@ -126,6 +126,9 @@ export class OllamaProvider implements AIProvider {
       stream: false,
       ...(Object.keys(options).length > 0 ? { options } : {}),
     };
+    if (request.tools) {
+      payload.tools = request.tools;
+    }
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/api/chat`, {
       method: "POST",

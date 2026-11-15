@@ -112,6 +112,8 @@ export interface ChatCompletionRequest {
   presence_penalty?: number;
   frequency_penalty?: number;
   user?: string;
+  tools?: unknown[];
+  tool_choice?: unknown;
 }
 
 export interface ChatCompletionChoice {

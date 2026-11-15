@@ -248,6 +248,8 @@ export const chatCompletionRequestSchema = z.object({
   presence_penalty: z.number().min(-2).max(2).optional(),
   frequency_penalty: z.number().min(-2).max(2).optional(),
   user: z.string().optional(),
+  tools: z.array(z.any()).optional(),
+  tool_choice: z.any().optional(),
 });
 
 export const createKeySchema = z.object({

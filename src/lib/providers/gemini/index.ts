@@ -133,6 +133,12 @@ export class GeminiWeb2APIProvider implements AIProvider {
       messages: request.messages,
       stream: false,
     };
+    if (request.tools) {
+      payload.tools = request.tools;
+    }
+    if (request.tool_choice !== undefined) {
+      payload.tool_choice = request.tool_choice;
+    }
     if (request.temperature !== undefined) {
       payload.temperature = request.temperature;
     }
@@ -233,6 +239,12 @@ export class GeminiWeb2APIProvider implements AIProvider {
       messages: request.messages,
       stream: true,
     };
+    if (request.tools) {
+      payload.tools = request.tools;
+    }
+    if (request.tool_choice !== undefined) {
+      payload.tool_choice = request.tool_choice;
+    }
     if (request.temperature !== undefined) {
       payload.temperature = request.temperature;
     }
